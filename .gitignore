@@ -221,3 +221,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ARES-X: archivos generados al ejecutar el juego 3D
+juego3d/cache/
+juego3d/motor.py
+*.csv
+ares_x_mision.json

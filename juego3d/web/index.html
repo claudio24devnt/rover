@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ARES-X · Centro de Control 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%23c1440e'/><circle cx='22' cy='24' r='5' fill='%23a3340a'/><circle cx='40' cy='40' r='7' fill='%23a3340a'/></svg>">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/jsm/" } }
+  </script>
+</head>
+<body>
+  <div id="escena"></div>
+  <div id="capa-etiquetas"></div>
+  <div id="vineta"></div>
+
+  <!-- ============ Barra superior ============ -->
+  <header id="barra">
+    <div class="marca">
+      <div class="logo"><span>A</span></div>
+      <div>
+        <div class="titulo">ARES-X</div>
+        <div class="sub">Rover autónomo · RNA + Difuso + AG</div>
+      </div>
+    </div>
+
+    <div class="medidores">
+      <div class="medidor" id="m-bateria" title="Batería del vehículo">
+        <div class="m-cab"><span>🔋 Batería</span><b id="v-bateria">–</b></div>
+        <div class="m-barra"><i></i><em class="m-reserva" title="Reserva requerida"></em></div>
+      </div>
+      <div class="medidor" id="m-ciencia" title="Valor científico recolectado / total">
+        <div class="m-cab"><span>💎 Ciencia</span><b id="v-ciencia">–</b></div>
+        <div class="m-barra"><i></i></div>
+      </div>
+      <div class="medidor" id="m-termico" title="Margen térmico al límite del hardware">
+        <div class="m-cab"><span>🌡️ Térmico</span><b id="v-termico">–</b></div>
+        <div class="m-barra"><i></i></div>
+      </div>
+      <div class="medidor" id="m-mecanico" title="Estado mecánico (100 − desgaste)">
+        <div class="m-cab"><span>⚙️ Mecánico</span><b id="v-mecanico">–</b></div>
+        <div class="m-barra"><i></i></div>
+      </div>
+      <div class="medidor" id="m-velocidad" title="Velocidad ejecutada (celdas/paso)">
+        <div class="m-cab"><span>🏎️ Velocidad</span><b id="v-velocidad">–</b></div>
+        <div class="m-barra"><i></i></div>
+      </div>
+    </div>
+
+    <div class="chips">
+      <span class="chip" id="chip-planeta">–</span>
+      <span class="chip estado" id="chip-estado">–</span>
+      <span class="chip" id="chip-paso">paso 0</span>
+      <span class="chip" id="chip-hora">–</span>
+    </div>
+
+    <div class="camaras" role="group" aria-label="Cámara">
+      <button data-cam="seguir" class="activo" title="Seguir al vehículo (C)">🎯</button>
+      <button data-cam="orbita" title="Vista general">🌐</button>
+      <button data-cam="cenital" title="Vista cenital">🗺️</button>
+      <button id="btn-ayuda" title="Ayuda y guía para la defensa">❔</button>
+    </div>
+  </header>
+
+  <!-- ============ Banner de decisión ============ -->
+  <div id="banner" class="oculto">
+    <span class="b-accion" id="b-accion">AVANZAR</span>
+    <span class="b-texto" id="b-texto"></span>
+  </div>
+  <div id="toasts"></div>
+
+  <!-- ============ Panel de misión (izquierda) ============ -->
+  <aside id="panel-mision" class="panel abierto">
+    <button class="pestana-lateral" id="toggle-mision" title="Configurar misión">🚀<span>Misión</span></button>
+    <div class="panel-cuerpo">
+      <h2>Configurar misión <small>RF-01</small></h2>
+
+      <label class="etq">Destino</label>
+      <div id="planetas" class="planetas"></div>
+      <div id="aviso-planeta" class="aviso oculto"></div>
+
+      <label class="etq">Vehículo</label>
+      <div class="segmentado" id="seg-modo">
+        <button data-v="rover" class="activo">🚙 Rover</button>
+        <button data-v="sonda">🎈 Sonda atmosférica</button>
+      </div>
+
+      <label class="etq">Dificultad</label>
+      <div class="segmentado" id="seg-dif">
+        <button data-v="facil">Fácil</button>
+        <button data-v="media" class="activo">Media</button>
+        <button data-v="dificil">Difícil</button>
+      </div>
+
+      <div class="fila2">
+        <div>
+          <label class="etq" for="in-semilla">Semilla</label>
+          <div class="semilla"><input id="in-semilla" type="number" value="42" min="0" max="999999"><button id="dado" title="Semilla aleatoria">🎲</button></div>
+        </div>
+        <div>
+          <label class="etq" for="in-pasos">Máx. pasos</label>
+          <input id="in-pasos" type="number" value="240" min="20" max="600">
+        </div>
+      </div>
+
+      <div class="deslizador"><label for="in-bateria">Batería inicial <b id="o-bateria">60 %</b></label><input id="in-bateria" type="range" min="1" max="100" value="60"></div>
+      <div class="deslizador"><label for="in-tam">Tamaño del mapa <b id="o-tam">22 × 22</b></label><input id="in-tam" type="range" min="12" max="40" value="22"></div>
+      <div class="deslizador"><label for="in-sitios">Sitios científicos <b id="o-sitios">6</b></label><input id="in-sitios" type="range" min="0" max="12" value="6"></div>
+
+      <label class="etq">Técnicas de IA <small>(ablaciones RF-14)</small></label>
+      <div class="interruptores">
+        <label class="sw"><input type="checkbox" id="sw-rna" checked><span></span>🧠 Red neuronal (percepción)</label>
+        <label class="sw"><input type="checkbox" id="sw-difuso" checked><span></span>🌫️ Lógica difusa (velocidad)</label>
+        <label class="sw"><input type="checkbox" id="sw-ag" checked><span></span>🧬 Algoritmo genético (rutas)</label>
+        <label class="sw"><input type="checkbox" id="sw-eventos" checked><span></span>🎲 Eventos aleatorios</label>
+      </div>
+
+      <div id="errores" class="aviso malo oculto"></div>
+      <button id="btn-lanzar" class="primario">🚀 Lanzar misión</button>
+
+      <p class="descargo">Simulación <b>ficticia</b> con parámetros astronómicos de referencia [NASA].
+        Los parámetros operacionales son hipótesis pedagógicas [SUPUESTO]. El detector de biofirmas
+        sólo emite señales anómalas: <b>nunca confirma vida</b>.</p>
+    </div>
+  </aside>
+
+  <!-- ============ Panel de IA (derecha) ============ -->
+  <aside id="panel-ia" class="panel abierto">
+    <button class="pestana-lateral" id="toggle-ia" title="Ver el cerebro del rover">🧠<span>Cerebro</span></button>
+    <div class="panel-cuerpo">
+      <nav class="tabs">
+        <button data-tab="ia" class="activo">🧠 Cerebro IA</button>
+        <button data-tab="tele">📟 Telemetría</button>
+        <button data-tab="log">📜 Bitácora</button>
+      </nav>
+
+      <section id="tab-ia" class="tab activo">
+        <div class="tuberia" id="tuberia">
+          <span data-e="sens">Sensores</span><i>›</i><span data-e="rna">RNA</span><i>›</i><span data-e="dif">Difuso</span><i>›</i><span data-e="ag">AG</span><i>›</i><span data-e="sup">Árbitro</span><i>›</i><span data-e="acc">Acción</span>
+        </div>
+
+        <div class="tarjeta" id="c-arbitro">
+          <h3>⚖️ Árbitro de seguridad</h3>
+          <div id="arbitro"></div>
+        </div>
+
+        <div class="tarjeta" id="c-rna">
+          <h3>🧠 Red neuronal <small>¿qué hay en la celda destino?</small></h3>
+          <div id="rna"></div>
+          <div id="rna-metricas" class="mini"></div>
+        </div>
+
+        <div class="tarjeta" id="c-difuso">
+          <h3>🌫️ Lógica difusa <small>Mamdani · centroide</small></h3>
+          <div id="difuso"></div>
+        </div>
+
+        <div class="tarjeta" id="c-ag">
+          <h3>🧬 Algoritmo genético <small>ruta + mochila + viajero</small></h3>
+          <div id="ag"></div>
+          <canvas id="convergencia" width="320" height="70"></canvas>
+          <details class="pesos">
+            <summary>🎚️ Laboratorio: pesos del fitness</summary>
+            <div id="pesos"></div>
+            <button id="btn-pesos" class="secundario">🔁 Replanificar con estos pesos</button>
+          </details>
+        </div>
+      </section>
+
+      <section id="tab-tele" class="tab">
+        <div id="telemetria" class="tele"></div>
+        <div id="tele-avisos"></div>
+      </section>
+
+      <section id="tab-log" class="tab">
+        <input id="filtro" placeholder="Filtrar: VETO, muestra, sismo…">
+        <div id="bitacora"></div>
+      </section>
+    </div>
+  </aside>
+
+  <!-- ============ Minimapa ============ -->
+  <div id="minimapa">
+    <canvas id="mini" width="180" height="180"></canvas>
+    <div class="capas">
+      <label><input type="checkbox" data-capa="plan" checked> Ruta AG</label>
+      <label><input type="checkbox" data-capa="candidatas" checked> Candidatas</label>
+      <label><input type="checkbox" data-capa="ejecutada" checked> Recorrido</label>
+      <label><input type="checkbox" data-capa="creencia"> Lo que cree</label>
+      <label><input type="checkbox" data-capa="etiquetas" checked> Etiquetas</label>
+    </div>
+  </div>
+
+  <!-- ============ Dock de controles ============ -->
+  <footer id="dock">
+    <div class="grupo">
+      <button id="btn-reiniciar" title="Reiniciar misión (R)">⟲</button>
+      <button id="btn-paso" title="Un paso (N)">⏭</button>
+      <button id="btn-play" class="play" title="Correr / pausar (Espacio)">▶</button>
+      <div class="velocidades" role="group" aria-label="Velocidad">
+        <button data-vel="1" class="activo">1×</button><button data-vel="2">2×</button><button data-vel="4">4×</button><button data-vel="8">8×</button>
+      </div>
+    </div>
+    <div class="grupo eventos" id="eventos"></div>
+    <div class="grupo">
+      <button id="btn-barranco" class="peligro" title="Crear un precipicio justo frente al rover (CA-02)">🕳️ Barranco al frente</button>
+      <button id="btn-lidar" class="peligro" title="Inyectar NaN en el LIDAR (RF-13)">📡 NaN LIDAR</button>
+      <a id="btn-csv" class="btn" href="/api/exportar/csv" title="Exportar traza CSV (RF-12)">⬇ CSV</a>
+      <a id="btn-json" class="btn" href="/api/exportar/json" title="Exportar misión JSON (RF-12)">⬇ JSON</a>
+    </div>
+  </footer>
+
+  <!-- ============ Modales ============ -->
+  <div id="modal-fin" class="modal oculto">
+    <div class="caja">
+      <div id="fin-icono" class="fin-icono">🏁</div>
+      <h2 id="fin-titulo">Misión terminada</h2>
+      <p id="fin-motivo"></p>
+      <div id="fin-metricas" class="fin-metricas"></div>
+      <div class="acciones">
+        <button class="secundario" id="fin-ver">👀 Ver el mapa</button>
+        <a class="btn" href="/api/exportar/csv">⬇ CSV</a>
+        <a class="btn" href="/api/exportar/json">⬇ JSON</a>
+        <button class="primario" id="fin-nueva">🚀 Nueva misión</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-ayuda" class="modal oculto">
+    <div class="caja ancha">
+      <h2>Cómo usar el Centro de Control</h2>
+      <div class="ayuda">
+        <div>
+          <h4>🎮 Controles</h4>
+          <ul>
+            <li><kbd>Espacio</kbd> correr / pausar · <kbd>N</kbd> un paso · <kbd>R</kbd> reiniciar</li>
+            <li><kbd>C</kbd> centrar la cámara en el vehículo · <kbd>B</kbd> ver lo que cree el rover</li>
+            <li>Arrastrar: girar · rueda: zoom · clic derecho: desplazar</li>
+          </ul>
+          <h4>🗺️ Qué ves</h4>
+          <ul>
+            <li><span class="sw-c" style="background:#3dff8b"></span> Ruta elegida por el AG · <span class="sw-c" style="background:#3d8bff"></span> recorrido real · <span class="sw-c" style="background:#ffa94d"></span> rutas candidatas</li>
+            <li>💎 Cristales: sitios científicos (★ prioritario) · 🏠 domos: refugios de recarga</li>
+            <li>🔴 Rombo rojo + X: el árbitro <b>vetó</b> esa celda · 🟦 rombo celeste: destino inmediato</li>
+            <li>Láser rojo: muestreo con el espectrómetro láser (acción <code>MUESTREAR</code>)</li>
+            <li>«Lo que cree»: mapa de riesgo de la RNA (verde seguro → rojo peligro, gris = sin explorar, X = zona prohibida)</li>
+          </ul>
+        </div>
+        <div>
+          <h4>🎓 Perturbaciones para la defensa</h4>
+          <ol>
+            <li><b>Pesos del fitness</b> → Cerebro IA › Laboratorio de pesos › Replanificar.</li>
+            <li><b>NaN en LIDAR</b> → botón «NaN LIDAR»: se espera <code>VETO_SENSOR</code> y modo seguro.</li>
+            <li><b>Marte → Júpiter</b> → el modo rover queda bloqueado con explicación científica.</li>
+            <li><b>Quitar la RNA</b> → desactivar «Red neuronal» y relanzar con la misma semilla.</li>
+            <li><b>Barranco al frente</b> → un paso: la RNA sube p(barranco), el difuso frena y el árbitro veta.</li>
+            <li><b>Reproducir semilla</b> → misma semilla ⇒ misma traza; exportar CSV y buscar la columna <code>motivo</code>.</li>
+          </ol>
+          <p class="descargo">El motor es el mismo código del notebook (extraído automáticamente). Esta interfaz sólo lo dibuja: no toma decisiones.</p>
+        </div>
+      </div>
+      <div class="acciones"><button class="primario" id="ayuda-cerrar">Entendido</button></div>
+    </div>
+  </div>
+
+  <div id="cargando">
+    <div class="planeta-carga"></div>
+    <div class="t">ARES-X</div>
+    <div class="s" id="carga-texto">Conectando con el motor de simulación…</div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
